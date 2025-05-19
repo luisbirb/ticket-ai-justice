@@ -85,7 +85,7 @@ export async function analyzeTicket(
   prompt: string = "Analyze this parking ticket and extract all relevant information including: ticket number, date/time issued, location, violation type, fine amount, and any other details that might help contest it."
 ): Promise<string> {
   if (!openAIKey) {
-    const key = prompt("Please enter your OpenAI API key to continue:");
+    const key = window.prompt("Please enter your OpenAI API key to continue:");
     if (!key) {
       toast.error("API key is required to analyze ticket images");
       return "API key required for image analysis.";
