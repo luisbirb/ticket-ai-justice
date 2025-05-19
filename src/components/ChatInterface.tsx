@@ -3,10 +3,10 @@ import React, { useState, useRef, useEffect } from "react";
 import ChatMessage from "./ChatMessage";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowUp, Ticket } from "lucide-react";
+import { ArrowUp, Ticket, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
-import { generateChatResponse } from "@/lib/openai-service";
+import { generateChatResponse, getRemainingMessages } from "@/lib/openai-service";
 import TicketUpload from "./TicketUpload";
 
 export interface Message {
@@ -21,6 +21,7 @@ const ChatInterface: React.FC = () => {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [ticketImage, setTicketImage] = useState<string | null>(null);
+  const [remainingMessages, setRemainingMessages] = useState<number>(10);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -36,6 +37,10 @@ const ChatInterface: React.FC = () => {
         },
       ]);
     }
+
+    // Update remaining messages count
+    const { count } = getRemainingMessages();
+    setRemainingMessages(count);
   }, []);
 
   useEffect(() => {
@@ -78,6 +83,20 @@ const ChatInterface: React.FC = () => {
   const handleSendMessage = async () => {
     if (inputValue.trim() === "" && !ticketImage) return;
 
+    // Check remaining messages
+    const { count, resetTime } = getRemainingMessages();
+    setRemainingMessages(count);
+    
+    if (count <= 0) {
+      const minutesRemaining = Math.ceil((resetTime - Date.now()) / (60 * 1000));
+      toast({
+        title: "Rate limit exceeded",
+        description: `You've reached your limit of 10 messages per hour. You can send more messages in ${minutesRemaining} minutes.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       content: inputValue,
@@ -116,6 +135,10 @@ const ChatInterface: React.FC = () => {
       if (ticketImage) {
         setTicketImage(null);
       }
+      
+      // Update remaining messages count
+      const { count } = getRemainingMessages();
+      setRemainingMessages(count);
     } catch (error) {
       console.error("Error generating response:", error);
       toast({
@@ -137,9 +160,15 @@ const ChatInterface: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-4 bg-card shadow-sm border-b flex items-center gap-2">
-        <Ticket className="h-5 w-5 text-primary" />
-        <h1 className="text-lg font-semibold">Parking Ticket Assistant</h1>
+      <div className="p-4 bg-card shadow-sm border-b flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Ticket className="h-5 w-5 text-primary" />
+          <h1 className="text-lg font-semibold">Parking Ticket Assistant</h1>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <MessageSquare className="h-4 w-4" />
+          <span>{remainingMessages} messages remaining</span>
+        </div>
       </div>
       
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -177,12 +206,13 @@ const ChatInterface: React.FC = () => {
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             className="min-h-[60px] max-h-[180px] resize-none"
-            disabled={isLoading}
+            disabled={isLoading || remainingMessages <= 0}
           />
           <Button
-            className={cn("h-[60px] w-[60px]", isLoading && "opacity-50")}
+            className={cn("h-[60px] w-[60px]", 
+              (isLoading || remainingMessages <= 0) && "opacity-50")}
             onClick={handleSendMessage}
-            disabled={isLoading || (inputValue.trim() === "" && !ticketImage)}
+            disabled={isLoading || remainingMessages <= 0 || (inputValue.trim() === "" && !ticketImage)}
           >
             <ArrowUp className="h-4 w-4" />
           </Button>
