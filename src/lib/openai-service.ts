@@ -1,10 +1,6 @@
 
 import { toast } from "sonner";
 
-// Set a server-side API key - in a production environment, this would be in an environment variable
-// For a public service, this key should be kept secure on the server side
-const SERVER_OPENAI_KEY = "your-openai-api-key-here"; // Replace with your actual API key
-
 // Rate limiting constants
 const MAX_MESSAGES_PER_HOUR = 10;
 const RATE_LIMIT_STORAGE_KEY = "parking-assistant-rate-limit";
@@ -94,31 +90,28 @@ export async function generateChatResponse(
       });
     }
 
-    // Create the API request
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Send request to your own backend API instead of directly to OpenAI
+    const response = await fetch("/api/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${SERVER_OPENAI_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
         messages: formattedMessages,
-        temperature: 0.7,
-        max_tokens: 1000,
+        ticketImage: ticketImage,
       }),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      console.error("OpenAI API error:", error);
-      throw new Error(error.error?.message || "Failed to get response");
+      console.error("API error:", error);
+      throw new Error(error.message || "Failed to get response");
     }
 
     const data = await response.json();
-    return data.choices[0].message.content;
+    return data.content;
   } catch (error) {
-    console.error("Error calling OpenAI API:", error);
+    console.error("Error calling API:", error);
     throw error;
   }
 }
@@ -133,12 +126,26 @@ export async function analyzeTicket(
   }
 
   try {
-    // For now, this is a simplified version since we'd need a more complex implementation
-    // to handle image analysis with OpenAI's API
-    // In a production app, you'd send the image to OpenAI's vision models
-    
-    // This would be replaced by actual API call in production
-    return "Based on the ticket image, this appears to be a parking violation for [reason]. The ticket was issued on [date] at [location]. The fine amount is [amount]. Potential contestation arguments might include: [arguments].";
+    // Send request to your own backend API instead of directly to OpenAI
+    const response = await fetch("/api/analyze-ticket", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        imageBase64,
+        prompt,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("API error:", error);
+      throw new Error(error.message || "Failed to analyze ticket");
+    }
+
+    const data = await response.json();
+    return data.analysis;
   } catch (error) {
     console.error("Error analyzing ticket:", error);
     throw error;
