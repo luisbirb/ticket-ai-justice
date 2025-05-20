@@ -1,4 +1,5 @@
 
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // Rate limiting constants
@@ -90,25 +91,19 @@ export async function generateChatResponse(
       });
     }
 
-    // Send request to your own backend API instead of directly to OpenAI
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    // Send request to Supabase edge function
+    const { data, error } = await supabase.functions.invoke("chat", {
+      body: {
         messages: formattedMessages,
         ticketImage: ticketImage,
-      }),
+      },
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      console.error("API error:", error);
+    if (error) {
+      console.error("Edge function error:", error);
       throw new Error(error.message || "Failed to get response");
     }
 
-    const data = await response.json();
     return data.content;
   } catch (error) {
     console.error("Error calling API:", error);
@@ -126,25 +121,19 @@ export async function analyzeTicket(
   }
 
   try {
-    // Send request to your own backend API instead of directly to OpenAI
-    const response = await fetch("/api/analyze-ticket", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    // Send request to Supabase edge function
+    const { data, error } = await supabase.functions.invoke("analyze-ticket", {
+      body: {
         imageBase64,
         prompt,
-      }),
+      },
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      console.error("API error:", error);
+    if (error) {
+      console.error("Edge function error:", error);
       throw new Error(error.message || "Failed to analyze ticket");
     }
 
-    const data = await response.json();
     return data.analysis;
   } catch (error) {
     console.error("Error analyzing ticket:", error);
